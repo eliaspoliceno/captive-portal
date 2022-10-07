@@ -1,4 +1,5 @@
 use actix_web::{web, App, HttpRequest, HttpServer, Responder};
+use std::net::{IpAddr};
 
 async fn generate204(req: HttpRequest) -> impl Responder {
     let start_str = &format!("Request \"{}\" URL=[{}] QueryString=[{}] Headers=[", req.method(), req.uri(), req.query_string());
@@ -12,15 +13,14 @@ async fn generate204(req: HttpRequest) -> impl Responder {
             owned_string.push_str(&format!("{:?}: {:?}, ", key, value));
         }
     }
-
-    owned_string.push_str("] ");
-    if let Some(val) = req.peer_addr() {
-    	let sub = val.ip().to_string();
-    	if let Some(pos) = sub.rfind(':') {
-    	    owned_string.push_str(&format!("Client=[{}] ", &sub[0..pos]));
-    	} else {
-    	    owned_string.push_str(&format!("Client=[{}] ", sub));
-    	}
+    
+    let addr = req.peer_addr().unwrap().ip();
+    if let IpAddr::V6(addr) = addr {
+        if let Some(ipv4) = addr.to_ipv4_mapped() {
+            owned_string.push_str(&format!("] Client=[{}] Host=[{}]", ipv4, req.connection_info().host()));
+        } else {
+            owned_string.push_str(&format!("] Client=[{}] Host=[{}]", addr, req.connection_info().host()));
+        }
     }
 
     println!("{}", owned_string);
